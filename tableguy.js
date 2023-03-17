@@ -74,6 +74,8 @@ class TableGuy {
 		let filterRow = document.createElement('tr');
 		filterRow.id = 'filter-row';
 
+		this.filterRow = filterRow;
+
 		// Create a cell for each column to hold filter select
 		for (let i=0; i<tableHeaders.length; i++) {
 			let td = document.createElement('td');
@@ -88,30 +90,32 @@ class TableGuy {
 			matrix.push([]);
 			if (!(this.filterExcludes.includes(i))) {
 				for (let j = 0; j < this.tableRows.length; j++) {
-					// Iterate over ever row in the table and get the value for col i
-					let row = this.tableRows[j];
-					let value;
-					let s = null;
-					// Strip tags for raw value
-					let cell = row.children[i].cloneNode(true);
-					try {
-						s = cell.querySelector('select');
-						if (s != null) {
-							value = s.options[s.selectedIndex].innerHTML
-						} else {
+					if (j > 0) {
+						let row = this.tableRows[j];
+						let value;
+						let childSelect = [];
+						// Strip tags for raw value
+						let cell = row.children[i].cloneNode(true);
+						try {
+							childSelect = cell.querySelectorAll('select');
+							let s = childSelect[0];
+							if (childSelect.length > 0) {
+								value = s.options[s.selectedIndex].innerHTML
+							} else {
+								value = stripTags(cell.innerHTML).trim();
+							}
+						} catch (error) {	
 							value = stripTags(cell.innerHTML).trim();
 						}
-					} catch (error) {	
-						value = stripTags(cell.innerHTML).trim();
-					}
-					
-					if (value != undefined) {
-						if (s != null && value.length == 0) {
-							value = " "
-						}
+						
+						if (value != undefined) {
+							if (childSelect.length == 0 && value.length == 0) {
+								value = " "
+							}
 
-						if (value.length > 0) {
-							matrix[i].push(value);
+							if (value.length > 0) {
+								matrix[i].push(value);
+							}
 						}
 					}
 				}
@@ -167,10 +171,13 @@ class TableGuy {
 
 	updateFilterOptions() {
 		let headerNames = Array.from(this.tableHeaders);
-		
 		let skipArr = this.currentFilters.map(x => x.index);
 		let rows = Array.from(this.tableRows);
-		let filterRow = rows.shift()
+		console.log(
+			"updateFilterOptions",
+			`Current Filters: ${JSON.stringify(this.currentFilters)}`
+		)
+		let filterRow = this.filterRow;
 
 		let selectedInputs = [];
 
@@ -194,31 +201,34 @@ class TableGuy {
 			matrix.push([]);
 			if (!(this.filterExcludes.includes(i))) {
 				for (let j = 0; j < rows.length; j++) {
+					if (j > 0) {
 					let row = rows[j];
-					if (!(row.classList.contains('d-none'))) {
-						let row = this.tableRows[j];
-						let value;
-						let s = null;
-						// Strip tags for raw value
-						let cell = row.children[i].cloneNode(true);
-						try {
-							s = cell.querySelector('select');
-							if (s != null) {
-								value = s.options[s.selectedIndex].innerHTML
-							} else {
+						if (!(row.classList.contains('d-none'))) {
+							let row = this.tableRows[j];
+							let value;
+							let childSelect = [];
+							// Strip tags for raw value
+							let cell = row.children[i].cloneNode(true);
+							try {
+								childSelect = cell.querySelectorAll('select');
+								let s = childSelect[0];
+								if (childSelect.length > 0) {
+									value = s.options[s.selectedIndex].innerHTML
+								} else {
+									value = stripTags(cell.innerHTML).trim();
+								}
+							} catch (error) {	
 								value = stripTags(cell.innerHTML).trim();
 							}
-						} catch (error) {	
-							value = stripTags(cell.innerHTML).trim();
-						}
-						
-						if (value != undefined) {
-							if (s != null && value.length == 0) {
-								value = " "
-							}
-	
-							if (value.length > 0) {
-								matrix[i].push(value);
+							
+							if (value != undefined) {
+								if (childSelect.length == 0 && value.length == 0) {
+									value = " "
+								}
+		
+								if (value.length > 0) {
+									matrix[i].push(value);
+								}
 							}
 						}
 					}
@@ -344,18 +354,20 @@ class TableGuy {
 		for (let i = 0; i < this.numberOfColumns; i++) {
 			matrix.push([]);
 		} 
+		
 		//iterate over each row
 		for (let i = 0; i < this.tableRows.length; i++) {
 			let currentRow = this.tableRows[i];
 			//iterate over eaech column in the row
 			for (let j = 0; j < this.numberOfColumns; j++) {
 				let value;
-				let s = null;
-				let cell = currentRow.children[j].cloneNode(true)
-				
+				let childSelect = [];
+				// Strip tags for raw value
+				let cell = currentRow.children[j].cloneNode(true);
 				try {
-					s = cell.querySelector('select');
-					if (s != null) {
+					childSelect = cell.querySelectorAll('select');
+					let s = childSelect[0];
+					if (childSelect.length > 0) {
 						value = s.options[s.selectedIndex].innerHTML
 					} else {
 						value = stripTags(cell.innerHTML).trim();
@@ -365,14 +377,10 @@ class TableGuy {
 				}
 				
 				if (value != undefined) {
-					if (s != null && value.length == 0) {
-						value = " "
-					}
-
-					if (value.length > 0) {
-						matrix[j].push(value);
-					}
+					value = value.length > 0 ? value : " "
+					matrix[j].push(value);
 				}
+					
 			}
 		}
 
@@ -390,6 +398,13 @@ class TableGuy {
 			let currentFilters = [];
 			let passFilterList = [];
 
+			console.log(
+				"searchTable",
+				`Query: ${query}`,
+				`Event: ${event}`,
+				`Column Number: ${columnNumber}`
+			)
+
 			//for as many columns that there are
 			for (let i = 0; i < this.numberOfColumns; i++) {
 
@@ -405,15 +420,17 @@ class TableGuy {
 					} else if (logic.indexOf("lt") > -1 && cellValue < query) {
 						if (logic == "lte" && cellValue == query) {
 							indexes.push(j)
-						}
+						} else {
 						//push the row number to a good indices list
-						indexes.push(j)
+							indexes.push(j)
+						}
 					} else if (logic.indexOf("gt") > -1 && cellValue > query) {
 						if (logic == "gte" && cellValue == query) {
 							indexes.push(j)
+						} else {
+							//push the row number to a good indices list
+							indexes.push(j)
 						}
-						//push the row number to a good indices list
-						indexes.push(j)
 					} else if (logic == 'contains' && cellValue.indexOf(query) > -1) {
 						//push the row number to a good indices list
 						indexes.push(j)
@@ -433,6 +450,7 @@ class TableGuy {
 							if (i === this.currentFilters[x].index) {
 
 								if (cellValue === this.currentFilters[x].value) {
+									console.log(i, this.currentFilters[x].index, this.currentFilters[x].value, cellValue)
 									passFilterList.push(j)
 								}
 							} 
@@ -471,6 +489,7 @@ class TableGuy {
 				}
 			}
 			this.paginatorResetPageNumbers();
+			this.updateFilterOptions();
 		}
 	}
 
@@ -496,10 +515,11 @@ class TableGuy {
 		var cols = rows.map((n, index) => [index, stripTags(n.children[column].innerHTML).replace('$', '').trim()]);
 		
 		if (this.dateCols.indexOf(column) > -1) {
-			cols = cols.map(x => [x[0], new Date(x[1])])
+			cols = cols.map(x => [x[0], x[1].length > 1 ? new Date(x[1]): new Date(1900, 1, 1)])
 		}
 
 		cols = cols.sort(sortSecondElem)
+		console.log(cols)
 		for (let i = 0; i < cols.length; i++) {
 			newCols.push(rows[cols[i][0]])
 		}
@@ -526,40 +546,26 @@ class TableGuy {
 		this.paginatorCreatePageNumbers();
 	}
 
-	paginatorHidePages() {
-		let rows = this.paginatorGetRows();
-		for (let i = 0; i < rows.length; i++) {
-			rows[i].style.display = 'none';
-		}
-	}
-
-	paginatorShowPages() {
-		let base = this.pageSize * (this.currentPage - 1)
-		let rows = this.paginatorGetRows().slice(base, base + this.pageSize)
-
-		for (let i = 0; i < rows.length; i++) {
-			rows[i].style.display = 'table-row';
-		}
-	}
-
-	paginatorViewPage() {
-		this.paginatorHidePages();
-		this.paginatorShowPages();
-		if (this.numberOfPages > 1) {
-			this.paginatorSetPageNumber();
-			this.updateFilterOptions();
-			console.log(`setting page number to ${this.currentPage}`)
-		}
-	}
-
-	paginatorChangePage(page) {
-		this.currentPage = page;
+	paginatorCreatePageNumbers() {
+		// Get the non-hidden rows / pageSize
+		this.numberOfPages = this.paginatorCalculateNumberOfPages();
+		// Create the DOM elements and add them to the parentNode
+		this.paginatorCreatePageElements();
 		this.paginatorViewPage();
+	}
+
+	paginatorCalculateNumberOfPages() {
+		let rows = this.paginatorGetRows();
+		let numberOfPages = Math.ceil(rows.length/this.pageSize);
+		return numberOfPages
 	}
 
 	paginatorGetRows() {
 		let rows = [];
 		let tableRows = Array.from(this.tableRows)
+		if (this.enableFilter) {
+			tableRows.shift();
+		}
 		for (let i =0; i < tableRows.length; i++) {
 			//check if row is visible
 			if (!(tableRows[i].classList.contains('d-none'))) {
@@ -567,40 +573,6 @@ class TableGuy {
 			}
 		}
 		return rows;
-	}
-
-	paginatorGoToPage = (evt) => {
-		let newPage = parseInt(evt.target.dataset.page);
-		this.paginatorChangePage(newPage)
-	}
-
-	paginatorSetPageNumber() {
-		for (let i in this.pageNumbers) {
-			if (this.pageNumbers[i].classList.contains('btn-primary')) {
-				this.pageNumbers[i].classList.remove('btn-primary');
-			}
-		}
-		console.log(`setting index ${this.currentPage - 1}`, this.pageNumbers)
-		if (this.pageNumbers.length > 0) {
-			this.pageNumbers[this.currentPage - 1].classList.add('btn-primary');
-		}
-	}
-
-	paginatorResetPageNumbers() {
-		if (this.table.parentNode.children.length > 1) {
-			this.table.parentNode.removeChild(this.table.parentNode.lastChild);
-			this.pageNumbers = [];
-		}
-
-		this.currentPage = 1;
-		this.paginatorCreatePageNumbers();
-		this.paginatorSetPageNumber();
-	}
-
-	paginatorCalculateNumberOfPages() {
-		let rows = this.paginatorGetRows();
-		let numberOfPages = Math.ceil(rows.length/this.pageSize);
-		return numberOfPages
 	}
 
 	paginatorCreatePageElements() {
@@ -628,7 +600,6 @@ class TableGuy {
 			page.dataset.page = i + 1;
 
 			pageNumberList.appendChild(page);
-
 			this.pageNumbers.push(page);
 		}
 
@@ -636,11 +607,87 @@ class TableGuy {
 		this.parent.appendChild(nav);
 	}
 
-	paginatorCreatePageNumbers() {
-		this.numberOfPages = this.paginatorCalculateNumberOfPages();
-		// Create the DOM elements and add them to the parentNode
-		this.paginatorCreatePageElements();
+	paginatorViewPage() {
+		this.paginatorHidePages();
+		this.paginatorShowPages();
+		// console.log(
+		// 	"paginatorViewPage",
+		// 	`Number of Pages: ${this.numberOfPages}`
+		// )
+		if (this.numberOfPages > 1) {
+			this.paginatorSetPageNumber();
+			this.updateFilterOptions();
+		}
+	}
+
+	paginatorHidePages() {
+		// sets display = none on all rows
+		let rows = this.paginatorGetRows();
+		// console.log(
+		// 	"paginatorHidePages",
+		// 	`Non-Hidden Row Length: ${rows.length}`
+		// )
+		for (let i = 0; i < rows.length; i++) {
+			rows[i].style.display = 'none';
+		}
+	}
+
+	paginatorShowPages() {
+		// sets display = table-row on currentPage * pageSize to currentPage + 1 * pageSize
+		// console.log(
+		// 	"paginatorShowPages",
+		// 	`Current Page: ${this.currentPage}`
+		// )
+		let base = this.pageSize * (this.currentPage - 1)
+		let rows = this.paginatorGetRows().slice(base, base + this.pageSize)
+
+		for (let i = 0; i < rows.length; i++) {
+			rows[i].style.display = 'table-row';
+		}
+	}
+
+	paginatorSetPageNumber() {
+		// console.log(
+		// 	"paginatorSetPageNumber", 
+		// 	`Current Page: ${this.currentPage - 1}`,
+		// 	`Page Numbers: ${this.pageNumbers}`
+		// )
+		for (let i in this.pageNumbers) {
+			if (this.pageNumbers[i].classList.contains('btn-primary')) {
+				this.pageNumbers[i].classList.remove('btn-primary');
+			}
+		}
+		if (this.pageNumbers.length > 0) {
+			this.pageNumbers[this.currentPage - 1].classList.add('btn-primary');
+		}
+	}
+
+	paginatorChangePage(page) {
+		// console.log(
+		// 	"paginatorChangePage",
+		// 	`Page: ${page}`
+		// )
+		this.currentPage = page;
 		this.paginatorViewPage();
+	}
+
+	paginatorGoToPage = (evt) => {
+		// console.log(
+		// 	"paginatorGoToPage", 
+		// 	`Dataset Page: ${evt.target.dataset.page}`
+		// )
+		let newPage = parseInt(evt.target.dataset.page);
+		this.paginatorChangePage(newPage)
+	}
+
+	paginatorResetPageNumbers() {
+		// console.log(
+		// 	"paginatorResetPageNumbers",
+		// 	`Current Page: ${this.currentPage}`
+		// )
+		this.currentPage = 1;
+		this.paginatorCreatePageNumbers();
+		this.paginatorSetPageNumber();
 	}
 
 }
